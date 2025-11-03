@@ -2,32 +2,7 @@ use egui_extras::{Column, TableBuilder};
 use std::collections::HashMap;
 use std::sync::OnceLock;
 
-/*
-let stations = [
-    (Station::CityWest, "CW"),
-    (Station::CitySouth, "CS"),
-    (Station::CoalMineEast, "CME"),
-    (Station::CoalMineSouth, "CMS"),
-    (Station::CoalPowerPlant, "CP"),
-    (Station::Farm, "FM"),
-    (Station::FoodFactory, "FF"),
-    (Station::ForestCentral, "FRC"),
-    (Station::ForestSouth, "FRS"),
-    (Station::GoodsFactory, "GF"),
-    (Station::Harbor, "HB"),
-    (Station::IronMineEast, "IME"),
-    (Station::IronMineWest, "IMW"),
-    (Station::MachineFactory, "MF"),
-    (Station::MilitaryBase, "MB"),
-    (Station::OilRefinery, "OR"),
-    (Station::OilWellCentral, "OWC"),
-    (Station::OilWellNorth, "OWN"),
-    (Station::Sawmill, "SW"),
-    (Station::SteelMill, "SM"),
-];
-*/
-
-#[derive(PartialEq, Debug, serde::Deserialize, serde::Serialize)]
+#[derive(Clone, Copy, PartialEq, Debug, serde::Deserialize, serde::Serialize)]
 pub enum Station {
     CitySouth,
     CityWest,
@@ -106,6 +81,29 @@ impl Station {
         .to_string()
     }
 }
+
+const STATIONS: [Station; 20] = [
+    Station::CitySouth,
+    Station::CityWest,
+    Station::CoalMineEast,
+    Station::CoalMineSouth,
+    Station::CoalPowerPlant,
+    Station::Farm,
+    Station::FoodFactory,
+    Station::ForestCentral,
+    Station::ForestSouth,
+    Station::GoodsFactory,
+    Station::Harbor,
+    Station::IronMineEast,
+    Station::IronMineWest,
+    Station::MachineFactory,
+    Station::MilitaryBase,
+    Station::OilRefinery,
+    Station::OilWellCentral,
+    Station::OilWellNorth,
+    Station::Sawmill,
+    Station::SteelMill,
+];
 
 #[derive(PartialEq, serde::Deserialize, serde::Serialize)]
 pub struct Order {
@@ -222,6 +220,13 @@ pub struct ConsistManagerApp {
     selected_loco: LocomotiveInfo,
 
     add_order_modal_open: bool,
+    selected_order: String,
+    selected_weight: String,
+    selected_length: String,
+    selected_pickup: Station,
+    selected_pickup_track: String,
+    selected_dropoff: Station,
+    selected_dropoff_track: String,
 
     locomotives: Vec<LocomotiveInfo>,
     orders: Vec<Order>,
@@ -231,8 +236,17 @@ impl Default for ConsistManagerApp {
     fn default() -> Self {
         Self {
             add_loco_modal_open: false,
-            add_order_modal_open: false,
             selected_loco: locomotives().get(&Locomotive::DE2).unwrap().clone(),
+
+            add_order_modal_open: false,
+            selected_order: String::new(),
+            selected_weight: String::new(),
+            selected_length: String::new(),
+            selected_pickup: Station::SteelMill,
+            selected_pickup_track: String::new(),
+            selected_dropoff: Station::Harbor,
+            selected_dropoff_track: String::new(),
+
             locomotives: Vec::new(),
             orders: Vec::new(),
         }
@@ -298,21 +312,96 @@ impl eframe::App for ConsistManagerApp {
             let modal = egui::Modal::new("Add Locomotive".into()).show(ctx, |ui| {
                 ui.set_width(250.0);
                 ui.heading("Add Locomotive");
-                egui::ComboBox::new("loco", "Locomotive:").show_ui(ui, |ui| {
-                    for l in LOCO_LIST {
-                        let loco_str = l.to_string();
-                        ui.selectable_value(
-                            &mut self.selected_loco,
-                            locomotives().get(&l).unwrap().clone(),
-                            loco_str,
-                        );
-                    }
-                });
+                egui::ComboBox::from_label("Locomotive:")
+                    .selected_text(&self.selected_loco.loco.to_string())
+                    .show_ui(ui, |ui| {
+                        for l in LOCO_LIST {
+                            let loco_str = l.to_string();
+                            ui.selectable_value(
+                                &mut self.selected_loco,
+                                locomotives().get(&l).unwrap().clone(),
+                                loco_str,
+                            );
+                        }
+                    });
                 ui.separator();
+                egui::Sides::new().show(
+                    ui,
+                    |_ui| {},
+                    |ui| {
+                        if ui.button("Add").clicked() {
+                            self.locomotives.push(self.selected_loco.clone());
+                            ui.close();
+                        }
+                        if ui.button("Cancel").clicked() {
+                            ui.close();
+                        }
+                    },
+                );
             });
 
             if modal.should_close() {
                 self.add_loco_modal_open = false;
+            }
+        }
+
+        if self.add_order_modal_open {
+            let modal = egui::Modal::new("Add Order".into()).show(ctx, |ui| {
+                ui.set_width(250.0);
+                ui.heading("Add Order");
+                ui.label("Order Name");
+                ui.text_edit_singleline(&mut self.selected_order);
+                ui.label("Weight");
+                ui.text_edit_singleline(&mut self.selected_weight);
+                ui.label("Length");
+                ui.text_edit_singleline(&mut self.selected_length);
+                ui.separator();
+                egui::ComboBox::from_label("Pickup Station:")
+                    .selected_text(&self.selected_pickup.to_abbrev())
+                    .show_ui(ui, |ui| {
+                        for s in STATIONS {
+                            let station_str = s.to_abbrev();
+                            ui.selectable_value(&mut self.selected_pickup, s, station_str);
+                        }
+                    });
+                ui.label("Pickup Track");
+                ui.separator();
+                ui.text_edit_singleline(&mut self.selected_pickup_track);
+                egui::ComboBox::from_label("Dropoff Station:")
+                    .selected_text(&self.selected_dropoff.to_abbrev())
+                    .show_ui(ui, |ui| {
+                        for s in STATIONS {
+                            let station_str = s.to_abbrev();
+                            ui.selectable_value(&mut self.selected_dropoff, s, station_str);
+                        }
+                    });
+                ui.label("Dropoff Track");
+                ui.text_edit_singleline(&mut self.selected_dropoff_track);
+                egui::Sides::new().show(
+                    ui,
+                    |_ui| {},
+                    |ui| {
+                        if ui.button("Add").clicked() {
+                            let order = Order {
+                                name: self.selected_order.clone(),
+                                weight: str::parse(&self.selected_weight).unwrap(),
+                                length: str::parse(&self.selected_length).unwrap(),
+                                pickup_station: self.selected_pickup.clone(),
+                                pickup_track: self.selected_pickup_track.clone(),
+                                dropoff_station: self.selected_dropoff.clone(),
+                                dropoff_track: self.selected_dropoff_track.clone(),
+                            };
+                            self.orders.push(order);
+                            ui.close();
+                        }
+                        if ui.button("Cancel").clicked() {
+                            ui.close();
+                        }
+                    },
+                );
+            });
+            if modal.should_close() {
+                self.add_order_modal_open = false;
             }
         }
 
@@ -343,7 +432,7 @@ impl eframe::App for ConsistManagerApp {
                         ui.heading("Dropoff Track");
                     });
                 })
-                .body(|mut body| {
+                .body(|body| {
                     body.rows(30.0, self.orders.len(), |mut row| {
                         let order = self.orders.get(row.index()).unwrap();
                         row.col(|ui| {
