@@ -1,8 +1,9 @@
 use egui_extras::{Column, TableBuilder};
 use std::collections::HashMap;
+use std::fmt::{self, Display, Formatter};
 use std::sync::OnceLock;
 
-#[derive(Clone, Copy, PartialEq, Debug, serde::Deserialize, serde::Serialize)]
+#[derive(Clone, Copy, PartialEq, Eq, Debug, serde::Deserialize, serde::Serialize)]
 pub enum Station {
     CitySouth,
     CityWest,
@@ -26,59 +27,59 @@ pub enum Station {
     SteelMill,
 }
 
-impl ToString for Station {
-    fn to_string(&self) -> String {
-        match self {
-            Station::CitySouth => "City South",
-            Station::CityWest => "City West",
-            Station::CoalMineEast => "Coal Mine East",
-            Station::CoalMineSouth => "Coal Mine South",
-            Station::CoalPowerPlant => "Coal Power Plant",
-            Station::Farm => "Farm",
-            Station::FoodFactory => "Food Factory & Town",
-            Station::ForestCentral => "Forest Central",
-            Station::ForestSouth => "Forest South",
-            Station::GoodsFactory => "Goods Factory & Town",
-            Station::Harbor => "Harbor & Town",
-            Station::IronMineEast => "Iron Ore Mine East",
-            Station::IronMineWest => "Iron Ore Mine West",
-            Station::MachineFactory => "Machine Factory & Town",
-            Station::MilitaryBase => "Military Base",
-            Station::OilRefinery => "Oil Refinery",
-            Station::OilWellCentral => "Oil Well Central",
-            Station::OilWellNorth => "Oil Well North",
-            Station::Sawmill => "Sawmill",
-            Station::SteelMill => "Steel Mill",
-        }
-        .to_string()
+impl Display for Station {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        let station_str = match self {
+            Self::CitySouth => "City South",
+            Self::CityWest => "City West",
+            Self::CoalMineEast => "Coal Mine East",
+            Self::CoalMineSouth => "Coal Mine South",
+            Self::CoalPowerPlant => "Coal Power Plant",
+            Self::Farm => "Farm",
+            Self::FoodFactory => "Food Factory & Town",
+            Self::ForestCentral => "Forest Central",
+            Self::ForestSouth => "Forest South",
+            Self::GoodsFactory => "Goods Factory & Town",
+            Self::Harbor => "Harbor & Town",
+            Self::IronMineEast => "Iron Ore Mine East",
+            Self::IronMineWest => "Iron Ore Mine West",
+            Self::MachineFactory => "Machine Factory & Town",
+            Self::MilitaryBase => "Military Base",
+            Self::OilRefinery => "Oil Refinery",
+            Self::OilWellCentral => "Oil Well Central",
+            Self::OilWellNorth => "Oil Well North",
+            Self::Sawmill => "Sawmill",
+            Self::SteelMill => "Steel Mill",
+        };
+        write!(f, "{station_str}")
     }
 }
 
 impl Station {
-    pub fn to_abbrev(&self) -> String {
+    pub fn to_abbrev(self) -> String {
         match self {
-            Station::CitySouth => "CS",
-            Station::CityWest => "CW",
-            Station::CoalMineEast => "CME",
-            Station::CoalMineSouth => "CMS",
-            Station::CoalPowerPlant => "CP",
-            Station::Farm => "FM",
-            Station::FoodFactory => "FF",
-            Station::ForestCentral => "FRC",
-            Station::ForestSouth => "FRS",
-            Station::GoodsFactory => "GF",
-            Station::Harbor => "HB",
-            Station::IronMineEast => "IME",
-            Station::IronMineWest => "IMW",
-            Station::MachineFactory => "MF",
-            Station::MilitaryBase => "MB",
-            Station::OilRefinery => "OR",
-            Station::OilWellCentral => "OWC",
-            Station::OilWellNorth => "OWN",
-            Station::Sawmill => "SW",
-            Station::SteelMill => "SM",
+            Self::CitySouth => "CS",
+            Self::CityWest => "CW",
+            Self::CoalMineEast => "CME",
+            Self::CoalMineSouth => "CMS",
+            Self::CoalPowerPlant => "CP",
+            Self::Farm => "FM",
+            Self::FoodFactory => "FF",
+            Self::ForestCentral => "FRC",
+            Self::ForestSouth => "FRS",
+            Self::GoodsFactory => "GF",
+            Self::Harbor => "HB",
+            Self::IronMineEast => "IME",
+            Self::IronMineWest => "IMW",
+            Self::MachineFactory => "MF",
+            Self::MilitaryBase => "MB",
+            Self::OilRefinery => "OR",
+            Self::OilWellCentral => "OWC",
+            Self::OilWellNorth => "OWN",
+            Self::Sawmill => "SW",
+            Self::SteelMill => "SM",
         }
-        .to_string()
+        .to_owned()
     }
 }
 
@@ -157,17 +158,17 @@ pub enum Locomotive {
     DE6,
 }
 
-impl ToString for Locomotive {
-    fn to_string(&self) -> String {
-        match self {
-            Locomotive::DE2 => "DE2",
-            Locomotive::S060 => "S060",
-            Locomotive::DM3 => "DM3",
-            Locomotive::DH4 => "DH4",
-            Locomotive::S282 => "S282",
-            Locomotive::DE6 => "DE6",
-        }
-        .to_string()
+impl Display for Locomotive {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        let loco_str = match self {
+            Self::DE2 => "DE2",
+            Self::S060 => "S060",
+            Self::DM3 => "DM3",
+            Self::DH4 => "DH4",
+            Self::S282 => "S282",
+            Self::DE6 => "DE6",
+        };
+        write!(f, "{loco_str}")
     }
 }
 
@@ -230,13 +231,22 @@ pub struct ConsistManagerApp {
 
     locomotives: Vec<LocomotiveInfo>,
     orders: Vec<Order>,
+
+    total_weight: f32,
+    total_length: f32,
+    supported_weight_0_deg: u16,
+    supported_weight_2_deg: u16,
+    supported_weight_rain: u16,
 }
 
 impl Default for ConsistManagerApp {
     fn default() -> Self {
         Self {
             add_loco_modal_open: false,
-            selected_loco: locomotives().get(&Locomotive::DE2).unwrap().clone(),
+            selected_loco: locomotives()
+                .get(&Locomotive::DE2)
+                .expect("Locomotive structure is totally borked")
+                .clone(),
 
             add_order_modal_open: false,
             selected_order: String::new(),
@@ -249,6 +259,12 @@ impl Default for ConsistManagerApp {
 
             locomotives: Vec::new(),
             orders: Vec::new(),
+
+            total_weight: 0.0,
+            total_length: 0.0,
+            supported_weight_0_deg: 0,
+            supported_weight_2_deg: 0,
+            supported_weight_rain: 0,
         }
     }
 }
@@ -267,6 +283,26 @@ impl ConsistManagerApp {
             Default::default()
         }
     }
+
+    // Recalculates the weight maximums of the current train consist.
+    pub fn recalc_loco_limits(&mut self) {
+        let weight_0_deg = self.locomotives.iter().fold(0, |a, l| a + l.zero_grade_t);
+        let weight_2_deg = self.locomotives.iter().fold(0, |a, l| a + l.two_grade_t);
+        let weight_rain = self.locomotives.iter().fold(0, |a, l| a + l.rain_grade_t);
+        self.supported_weight_0_deg = weight_0_deg;
+        self.supported_weight_2_deg = weight_2_deg;
+        self.supported_weight_rain = weight_rain;
+    }
+
+    // Recalculates the total weight and length of the current consist.
+    pub fn recalc_consist(&mut self) {
+        let loco_weight = self.locomotives.iter().fold(0.0, |a, l| a + l.weight);
+        let order_weight = self.orders.iter().fold(0.0, |a, o| a + o.weight);
+        self.total_weight = loco_weight + order_weight;
+        let loco_length = self.locomotives.iter().fold(0.0, |a, l| a + l.length);
+        let order_length = self.orders.iter().fold(0.0, |a, o| a + o.length);
+        self.total_length = loco_length + order_length;
+    }
 }
 
 impl eframe::App for ConsistManagerApp {
@@ -284,28 +320,58 @@ impl eframe::App for ConsistManagerApp {
             // The top panel is often a good place for a menu bar:
 
             egui::MenuBar::new().ui(ui, |ui| {
-                // NOTE: no File->Quit on web pages!
-                let is_web = cfg!(target_arch = "wasm32");
-                if !is_web {
-                    ui.menu_button("File", |ui| {
-                        if ui.button("Quit").clicked() {
-                            ctx.send_viewport_cmd(egui::ViewportCommand::Close);
-                        }
-                    });
-                    ui.add_space(16.0);
+                if ui.button("Add Locomotive").clicked() {
+                    self.add_loco_modal_open = true;
                 }
-
+                ui.add_space(15.0);
+                if ui.button("Add Order").clicked() {
+                    self.add_order_modal_open = true;
+                }
+                ui.add_space(360.0);
                 egui::widgets::global_theme_preference_buttons(ui);
             });
         });
 
-        egui::SidePanel::left("side_menu").show(ctx, |ui| {
-            if ui.button("Add Locomotive").clicked() {
-                self.add_loco_modal_open = true;
+        egui::SidePanel::left("loco-menu").show(ctx, |ui| {
+            let mut loco_to_delete = None;
+            ui.vertical_centered(|ui| ui.heading("Current Locomotives"));
+            ui.separator();
+            for ix in 0..self.locomotives.len() {
+                let loco = self
+                    .locomotives
+                    .get(ix)
+                    .expect("Went out of bounds on locomotive list");
+                let response = ui.label(format!("- {}", loco.loco));
+                egui::Popup::context_menu(&response)
+                    .id(egui::Id::new("loco_menu").with(ix))
+                    .close_behavior(egui::PopupCloseBehavior::CloseOnClick)
+                    .show(|ui| {
+                        ui.set_min_width(200.0);
+                        if ui.button("Delete locomotive").clicked() {
+                            loco_to_delete = Some(ix);
+                        }
+                    });
             }
-            if ui.button("Add Order").clicked() {
-                self.add_order_modal_open = true;
+            if let Some(loco) = loco_to_delete {
+                self.locomotives.remove(loco);
+                self.recalc_loco_limits();
+                self.recalc_consist();
             }
+        });
+
+        egui::SidePanel::right("status-menu").show(ctx, |ui| {
+            ui.vertical_centered(|ui| ui.heading("Consist Info"));
+            ui.separator();
+            ui.label(format!("- Total Weight: {} T", self.total_weight));
+            ui.label("- Supported Weights:");
+            ui.label(format!("  - 0% grade: {} T", self.supported_weight_0_deg));
+            ui.label(format!("  - 2% grade: {} T", self.supported_weight_2_deg));
+            ui.label(format!(
+                "  - 2% grade in rain: {} T",
+                self.supported_weight_rain
+            ));
+            ui.separator();
+            ui.label(format!("- Total Length: {}m", self.total_length));
         });
 
         if self.add_loco_modal_open {
@@ -313,13 +379,13 @@ impl eframe::App for ConsistManagerApp {
                 ui.set_width(250.0);
                 ui.heading("Add Locomotive");
                 egui::ComboBox::from_label("Locomotive:")
-                    .selected_text(&self.selected_loco.loco.to_string())
+                    .selected_text(self.selected_loco.loco.to_string())
                     .show_ui(ui, |ui| {
                         for l in LOCO_LIST {
                             let loco_str = l.to_string();
                             ui.selectable_value(
                                 &mut self.selected_loco,
-                                locomotives().get(&l).unwrap().clone(),
+                                locomotives().get(&l).expect("Unknown locomotive").clone(),
                                 loco_str,
                             );
                         }
@@ -331,6 +397,8 @@ impl eframe::App for ConsistManagerApp {
                     |ui| {
                         if ui.button("Add").clicked() {
                             self.locomotives.push(self.selected_loco.clone());
+                            self.recalc_consist();
+                            self.recalc_loco_limits();
                             ui.close();
                         }
                         if ui.button("Cancel").clicked() {
@@ -357,7 +425,7 @@ impl eframe::App for ConsistManagerApp {
                 ui.text_edit_singleline(&mut self.selected_length);
                 ui.separator();
                 egui::ComboBox::from_label("Pickup Station:")
-                    .selected_text(&self.selected_pickup.to_abbrev())
+                    .selected_text(self.selected_pickup.to_abbrev())
                     .show_ui(ui, |ui| {
                         for s in STATIONS {
                             let station_str = s.to_abbrev();
@@ -368,7 +436,7 @@ impl eframe::App for ConsistManagerApp {
                 ui.separator();
                 ui.text_edit_singleline(&mut self.selected_pickup_track);
                 egui::ComboBox::from_label("Dropoff Station:")
-                    .selected_text(&self.selected_dropoff.to_abbrev())
+                    .selected_text(self.selected_dropoff.to_abbrev())
                     .show_ui(ui, |ui| {
                         for s in STATIONS {
                             let station_str = s.to_abbrev();
@@ -384,14 +452,20 @@ impl eframe::App for ConsistManagerApp {
                         if ui.button("Add").clicked() {
                             let order = Order {
                                 name: self.selected_order.clone(),
-                                weight: str::parse(&self.selected_weight).unwrap(),
-                                length: str::parse(&self.selected_length).unwrap(),
-                                pickup_station: self.selected_pickup.clone(),
+                                weight: str::parse(&self.selected_weight).expect("Invalid weight"),
+                                length: str::parse(&self.selected_length).expect("Invalid length"),
+                                pickup_station: self.selected_pickup,
                                 pickup_track: self.selected_pickup_track.clone(),
-                                dropoff_station: self.selected_dropoff.clone(),
+                                dropoff_station: self.selected_dropoff,
                                 dropoff_track: self.selected_dropoff_track.clone(),
                             };
+                            self.selected_order = String::new();
+                            self.selected_weight = String::new();
+                            self.selected_length = String::new();
+                            self.selected_pickup_track = String::new();
+                            self.selected_dropoff_track = String::new();
                             self.orders.push(order);
+                            self.recalc_consist();
                             ui.close();
                         }
                         if ui.button("Cancel").clicked() {
@@ -406,9 +480,12 @@ impl eframe::App for ConsistManagerApp {
         }
 
         egui::CentralPanel::default().show(ctx, |ui| {
-            // The central panel the region left after adding TopPanel's and SidePanel's
+            ui.vertical_centered(|ui| ui.heading("Orders"));
+            ui.separator();
             TableBuilder::new(ui)
-                .columns(Column::auto().resizable(true), 7)
+                .striped(true)
+                .sense(egui::Sense::click())
+                .columns(Column::auto().resizable(false), 7)
                 .header(20.0, |mut header| {
                     header.col(|ui| {
                         ui.heading("Order Name");
@@ -434,7 +511,10 @@ impl eframe::App for ConsistManagerApp {
                 })
                 .body(|body| {
                     body.rows(30.0, self.orders.len(), |mut row| {
-                        let order = self.orders.get(row.index()).unwrap();
+                        let order = &self
+                            .orders
+                            .get(row.index())
+                            .expect("Indexing somehow doesn't work anymore");
                         row.col(|ui| {
                             ui.label(&order.name);
                         });
@@ -456,6 +536,17 @@ impl eframe::App for ConsistManagerApp {
                         row.col(|ui| {
                             ui.label(&order.dropoff_track);
                         });
+
+                        egui::Popup::context_menu(&row.response())
+                            .id(egui::Id::new("order_menu").with(row.index()))
+                            .close_behavior(egui::PopupCloseBehavior::CloseOnClick)
+                            .show(|ui| {
+                                ui.set_min_width(200.0);
+                                if ui.button("Delete order").clicked() {
+                                    self.orders.remove(row.index());
+                                    self.recalc_consist();
+                                }
+                            });
                     });
                 });
         });
