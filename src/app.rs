@@ -488,25 +488,25 @@ impl eframe::App for ConsistManagerApp {
                 .columns(Column::auto().resizable(false), 7)
                 .header(20.0, |mut header| {
                     header.col(|ui| {
-                        ui.heading("Order Name");
+                        ui.label(egui::RichText::new("Order Name").strong());
                     });
                     header.col(|ui| {
-                        ui.heading("Weight");
+                        ui.label(egui::RichText::new("Weight").strong());
                     });
                     header.col(|ui| {
-                        ui.heading("Length");
+                        ui.label(egui::RichText::new("Length").strong());
                     });
                     header.col(|ui| {
-                        ui.heading("Pickup Station");
+                        ui.label(egui::RichText::new("Pickup Station").strong());
                     });
                     header.col(|ui| {
-                        ui.heading("Pickup Track");
+                        ui.label(egui::RichText::new("Pickup Track").strong());
                     });
                     header.col(|ui| {
-                        ui.heading("Dropoff Station");
+                        ui.label(egui::RichText::new("Dropoff Station").strong());
                     });
                     header.col(|ui| {
-                        ui.heading("Dropoff Track");
+                        ui.label(egui::RichText::new("Dropoff Track").strong());
                     });
                 })
                 .body(|body| {
@@ -515,6 +515,7 @@ impl eframe::App for ConsistManagerApp {
                             .orders
                             .get(row.index())
                             .expect("Indexing somehow doesn't work anymore");
+                        row.set_overline(true);
                         row.col(|ui| {
                             ui.label(&order.name);
                         });
