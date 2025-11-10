@@ -1,121 +1,8 @@
+use crate::order::{EditOrderModal, NewOrderModal, Order};
 use egui_extras::{Column, TableBuilder};
 use std::collections::HashMap;
 use std::fmt::{self, Display, Formatter};
 use std::sync::OnceLock;
-
-#[derive(Clone, Copy, PartialEq, Eq, Debug, serde::Deserialize, serde::Serialize)]
-pub enum Station {
-    CitySouth,
-    CityWest,
-    CoalMineEast,
-    CoalMineSouth,
-    CoalPowerPlant,
-    Farm,
-    FoodFactory,
-    ForestCentral,
-    ForestSouth,
-    GoodsFactory,
-    Harbor,
-    IronMineEast,
-    IronMineWest,
-    MachineFactory,
-    MilitaryBase,
-    OilRefinery,
-    OilWellCentral,
-    OilWellNorth,
-    Sawmill,
-    SteelMill,
-}
-
-impl Display for Station {
-    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        let station_str = match self {
-            Self::CitySouth => "City South",
-            Self::CityWest => "City West",
-            Self::CoalMineEast => "Coal Mine East",
-            Self::CoalMineSouth => "Coal Mine South",
-            Self::CoalPowerPlant => "Coal Power Plant",
-            Self::Farm => "Farm",
-            Self::FoodFactory => "Food Factory & Town",
-            Self::ForestCentral => "Forest Central",
-            Self::ForestSouth => "Forest South",
-            Self::GoodsFactory => "Goods Factory & Town",
-            Self::Harbor => "Harbor & Town",
-            Self::IronMineEast => "Iron Ore Mine East",
-            Self::IronMineWest => "Iron Ore Mine West",
-            Self::MachineFactory => "Machine Factory & Town",
-            Self::MilitaryBase => "Military Base",
-            Self::OilRefinery => "Oil Refinery",
-            Self::OilWellCentral => "Oil Well Central",
-            Self::OilWellNorth => "Oil Well North",
-            Self::Sawmill => "Sawmill",
-            Self::SteelMill => "Steel Mill",
-        };
-        write!(f, "{station_str}")
-    }
-}
-
-impl Station {
-    pub fn to_abbrev(self) -> String {
-        match self {
-            Self::CitySouth => "CS",
-            Self::CityWest => "CW",
-            Self::CoalMineEast => "CME",
-            Self::CoalMineSouth => "CMS",
-            Self::CoalPowerPlant => "CP",
-            Self::Farm => "FM",
-            Self::FoodFactory => "FF",
-            Self::ForestCentral => "FRC",
-            Self::ForestSouth => "FRS",
-            Self::GoodsFactory => "GF",
-            Self::Harbor => "HB",
-            Self::IronMineEast => "IME",
-            Self::IronMineWest => "IMW",
-            Self::MachineFactory => "MF",
-            Self::MilitaryBase => "MB",
-            Self::OilRefinery => "OR",
-            Self::OilWellCentral => "OWC",
-            Self::OilWellNorth => "OWN",
-            Self::Sawmill => "SW",
-            Self::SteelMill => "SM",
-        }
-        .to_owned()
-    }
-}
-
-const STATIONS: [Station; 20] = [
-    Station::CitySouth,
-    Station::CityWest,
-    Station::CoalMineEast,
-    Station::CoalMineSouth,
-    Station::CoalPowerPlant,
-    Station::Farm,
-    Station::FoodFactory,
-    Station::ForestCentral,
-    Station::ForestSouth,
-    Station::GoodsFactory,
-    Station::Harbor,
-    Station::IronMineEast,
-    Station::IronMineWest,
-    Station::MachineFactory,
-    Station::MilitaryBase,
-    Station::OilRefinery,
-    Station::OilWellCentral,
-    Station::OilWellNorth,
-    Station::Sawmill,
-    Station::SteelMill,
-];
-
-#[derive(PartialEq, serde::Deserialize, serde::Serialize)]
-pub struct Order {
-    name: String,
-    weight: f32,
-    length: f32,
-    pickup_station: Station,
-    pickup_track: String,
-    dropoff_station: Station,
-    dropoff_track: String,
-}
 
 #[derive(Clone, PartialEq, serde::Deserialize, serde::Serialize)]
 pub struct LocomotiveInfo {
@@ -220,17 +107,13 @@ pub struct ConsistManagerApp {
     add_loco_modal_open: bool,
     selected_loco: LocomotiveInfo,
 
-    add_order_modal_open: bool,
-    selected_order: String,
-    selected_weight: String,
-    selected_length: String,
-    selected_pickup: Station,
-    selected_pickup_track: String,
-    selected_dropoff: Station,
-    selected_dropoff_track: String,
+    #[serde(skip)]
+    new_ordal_modal: NewOrderModal,
+    #[serde(skip)]
+    edit_ordal_modal: EditOrderModal,
 
     locomotives: Vec<LocomotiveInfo>,
-    orders: Vec<Order>,
+    pub orders: Vec<Order>,
 
     total_weight: f32,
     total_length: f32,
@@ -248,14 +131,8 @@ impl Default for ConsistManagerApp {
                 .expect("Locomotive structure is totally borked")
                 .clone(),
 
-            add_order_modal_open: false,
-            selected_order: String::new(),
-            selected_weight: String::new(),
-            selected_length: String::new(),
-            selected_pickup: Station::SteelMill,
-            selected_pickup_track: String::new(),
-            selected_dropoff: Station::Harbor,
-            selected_dropoff_track: String::new(),
+            new_ordal_modal: NewOrderModal::new(),
+            edit_ordal_modal: EditOrderModal::new(),
 
             locomotives: Vec::new(),
             orders: Vec::new(),
@@ -325,7 +202,7 @@ impl eframe::App for ConsistManagerApp {
                 }
                 ui.add_space(15.0);
                 if ui.button("Add Order").clicked() {
-                    self.add_order_modal_open = true;
+                    self.new_ordal_modal.open = true;
                 }
                 ui.add_space(360.0);
                 egui::widgets::global_theme_preference_buttons(ui);
@@ -413,70 +290,11 @@ impl eframe::App for ConsistManagerApp {
             }
         }
 
-        if self.add_order_modal_open {
-            let modal = egui::Modal::new("Add Order".into()).show(ctx, |ui| {
-                ui.set_width(250.0);
-                ui.heading("Add Order");
-                ui.label("Order Name");
-                ui.text_edit_singleline(&mut self.selected_order);
-                ui.label("Weight");
-                ui.text_edit_singleline(&mut self.selected_weight);
-                ui.label("Length");
-                ui.text_edit_singleline(&mut self.selected_length);
-                ui.separator();
-                egui::ComboBox::from_label("Pickup Station:")
-                    .selected_text(self.selected_pickup.to_abbrev())
-                    .show_ui(ui, |ui| {
-                        for s in STATIONS {
-                            let station_str = s.to_abbrev();
-                            ui.selectable_value(&mut self.selected_pickup, s, station_str);
-                        }
-                    });
-                ui.label("Pickup Track");
-                ui.separator();
-                ui.text_edit_singleline(&mut self.selected_pickup_track);
-                egui::ComboBox::from_label("Dropoff Station:")
-                    .selected_text(self.selected_dropoff.to_abbrev())
-                    .show_ui(ui, |ui| {
-                        for s in STATIONS {
-                            let station_str = s.to_abbrev();
-                            ui.selectable_value(&mut self.selected_dropoff, s, station_str);
-                        }
-                    });
-                ui.label("Dropoff Track");
-                ui.text_edit_singleline(&mut self.selected_dropoff_track);
-                egui::Sides::new().show(
-                    ui,
-                    |_ui| {},
-                    |ui| {
-                        if ui.button("Add").clicked() {
-                            let order = Order {
-                                name: self.selected_order.clone(),
-                                weight: str::parse(&self.selected_weight).expect("Invalid weight"),
-                                length: str::parse(&self.selected_length).expect("Invalid length"),
-                                pickup_station: self.selected_pickup,
-                                pickup_track: self.selected_pickup_track.clone(),
-                                dropoff_station: self.selected_dropoff,
-                                dropoff_track: self.selected_dropoff_track.clone(),
-                            };
-                            self.selected_order = String::new();
-                            self.selected_weight = String::new();
-                            self.selected_length = String::new();
-                            self.selected_pickup_track = String::new();
-                            self.selected_dropoff_track = String::new();
-                            self.orders.push(order);
-                            self.recalc_consist();
-                            ui.close();
-                        }
-                        if ui.button("Cancel").clicked() {
-                            ui.close();
-                        }
-                    },
-                );
-            });
-            if modal.should_close() {
-                self.add_order_modal_open = false;
-            }
+        self.new_ordal_modal.show(ctx);
+        if let Some(order) = &self.new_ordal_modal.new_order {
+            self.orders.push(order.clone());
+            self.recalc_consist();
+            self.new_ordal_modal.new_order = None;
         }
 
         egui::CentralPanel::default().show(ctx, |ui| {
@@ -510,11 +328,10 @@ impl eframe::App for ConsistManagerApp {
                     });
                 })
                 .body(|body| {
+                    let mut order_to_delete = None;
+
                     body.rows(30.0, self.orders.len(), |mut row| {
-                        let order = &self
-                            .orders
-                            .get(row.index())
-                            .expect("Indexing somehow doesn't work anymore");
+                        let order = self.orders.get(row.index()).expect("Indexing woes").clone();
                         row.set_overline(true);
                         row.col(|ui| {
                             ui.label(&order.name);
@@ -543,13 +360,29 @@ impl eframe::App for ConsistManagerApp {
                             .close_behavior(egui::PopupCloseBehavior::CloseOnClick)
                             .show(|ui| {
                                 ui.set_min_width(200.0);
-                                if ui.button("Delete order").clicked() {
-                                    self.orders.remove(row.index());
-                                    self.recalc_consist();
+                                if ui.button("Edit order").clicked() {
+                                    self.edit_ordal_modal.init(&order, row.index());
+                                    self.edit_ordal_modal.open = true;
+                                } else if ui.button("Delete order").clicked() {
+                                    order_to_delete = Some(row.index());
                                 }
                             });
                     });
+                    if let Some(index) = order_to_delete {
+                        self.orders.remove(index);
+                        self.recalc_consist();
+                    }
                 });
         });
+
+        self.edit_ordal_modal.show(ctx);
+        if let Some(edited_order) = &self.edit_ordal_modal.edited_order {
+            let ix = self.edit_ordal_modal.index;
+            if let Some(order) = self.orders.get_mut(ix) {
+                *order = edited_order.clone();
+                self.recalc_consist();
+                self.edit_ordal_modal.edited_order = None;
+            }
+        }
     }
 }
