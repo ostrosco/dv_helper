@@ -1,0 +1,99 @@
+use std::collections::HashMap;
+use std::fmt::{self, Display, Formatter};
+use std::sync::OnceLock;
+
+#[derive(Clone, PartialEq, serde::Deserialize, serde::Serialize)]
+pub struct LocomotiveInfo {
+    pub loco: Locomotive,
+    pub weight: f32,
+    pub length: f32,
+    pub zero_grade_t: u16,
+    pub two_grade_t: u16,
+    pub rain_grade_t: u16,
+}
+
+impl LocomotiveInfo {
+    pub fn new(
+        loco: Locomotive,
+        weight: f32,
+        length: f32,
+        zero_grade_t: u16,
+        two_grade_t: u16,
+        rain_grade_t: u16,
+    ) -> Self {
+        let length = length / 1000.0;
+        Self {
+            loco,
+            weight,
+            length,
+            zero_grade_t,
+            two_grade_t,
+            rain_grade_t,
+        }
+    }
+}
+
+#[derive(Clone, Copy, PartialEq, Eq, serde::Deserialize, serde::Serialize, Hash)]
+pub enum Locomotive {
+    DE2,
+    S060,
+    DM3,
+    DH4,
+    S282,
+    DE6,
+}
+
+impl Display for Locomotive {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        let loco_str = match self {
+            Self::DE2 => "DE2",
+            Self::S060 => "S060",
+            Self::DM3 => "DM3",
+            Self::DH4 => "DH4",
+            Self::S282 => "S282",
+            Self::DE6 => "DE6",
+        };
+        write!(f, "{loco_str}")
+    }
+}
+
+pub const LOCO_LIST: [Locomotive; 6] = [
+    Locomotive::DE2,
+    Locomotive::S060,
+    Locomotive::DM3,
+    Locomotive::DH4,
+    Locomotive::S282,
+    Locomotive::DE6,
+];
+
+pub fn locomotives() -> &'static HashMap<Locomotive, LocomotiveInfo> {
+    static LOCOMOTIVES: OnceLock<HashMap<Locomotive, LocomotiveInfo>> = OnceLock::new();
+    LOCOMOTIVES.get_or_init(|| {
+        let mut l = HashMap::new();
+        l.insert(
+            Locomotive::DE2,
+            LocomotiveInfo::new(Locomotive::DE2, 38.0, 7600.0, 1200, 300, 250),
+        );
+        l.insert(
+            Locomotive::S060,
+            LocomotiveInfo::new(Locomotive::S060, 50.7, 9320.0, 1500, 400, 300),
+        );
+        l.insert(
+            Locomotive::DM3,
+            LocomotiveInfo::new(Locomotive::DM3, 52.0, 8600.0, 2000, 500, 400),
+        );
+        l.insert(
+            Locomotive::DH4,
+            LocomotiveInfo::new(Locomotive::DH4, 77.5, 12840.0, 2000, 600, 500),
+        );
+        l.insert(
+            Locomotive::S282,
+            LocomotiveInfo::new(Locomotive::S282, 174.8, 22180.0, 3000, 1000, 800),
+        );
+        l.insert(
+            Locomotive::DE6,
+            LocomotiveInfo::new(Locomotive::DE6, 125.0, 18640.0, 3000, 1200, 1000),
+        );
+        l
+    })
+}
