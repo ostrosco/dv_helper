@@ -1,4 +1,4 @@
-use crate::order::{EditOrderModal, NewOrderModal, Order};
+use crate::order::{Order, OrderModal, OrderModalMode};
 use egui_extras::{Column, TableBuilder};
 use std::collections::HashMap;
 use std::fmt::{self, Display, Formatter};
@@ -108,9 +108,9 @@ pub struct ConsistManagerApp {
     selected_loco: LocomotiveInfo,
 
     #[serde(skip)]
-    new_ordal_modal: NewOrderModal,
+    new_ordal_modal: OrderModal,
     #[serde(skip)]
-    edit_ordal_modal: EditOrderModal,
+    edit_ordal_modal: OrderModal,
 
     locomotives: Vec<LocomotiveInfo>,
     pub orders: Vec<Order>,
@@ -131,8 +131,8 @@ impl Default for ConsistManagerApp {
                 .expect("Locomotive structure is totally borked")
                 .clone(),
 
-            new_ordal_modal: NewOrderModal::new(),
-            edit_ordal_modal: EditOrderModal::new(),
+            new_ordal_modal: OrderModal::new(OrderModalMode::New),
+            edit_ordal_modal: OrderModal::new(OrderModalMode::Edit),
 
             locomotives: Vec::new(),
             orders: Vec::new(),
@@ -291,10 +291,10 @@ impl eframe::App for ConsistManagerApp {
         }
 
         self.new_ordal_modal.show(ctx);
-        if let Some(order) = &self.new_ordal_modal.new_order {
+        if let Some(order) = &self.new_ordal_modal.order {
             self.orders.push(order.clone());
             self.recalc_consist();
-            self.new_ordal_modal.new_order = None;
+            self.new_ordal_modal.order = None;
         }
 
         egui::CentralPanel::default().show(ctx, |ui| {
@@ -361,7 +361,7 @@ impl eframe::App for ConsistManagerApp {
                             .show(|ui| {
                                 ui.set_min_width(200.0);
                                 if ui.button("Edit order").clicked() {
-                                    self.edit_ordal_modal.init(&order, row.index());
+                                    self.edit_ordal_modal.init_from_order(&order, row.index());
                                     self.edit_ordal_modal.open = true;
                                 } else if ui.button("Delete order").clicked() {
                                     order_to_delete = Some(row.index());
@@ -376,12 +376,12 @@ impl eframe::App for ConsistManagerApp {
         });
 
         self.edit_ordal_modal.show(ctx);
-        if let Some(edited_order) = &self.edit_ordal_modal.edited_order {
+        if let Some(edited_order) = &self.edit_ordal_modal.order {
             let ix = self.edit_ordal_modal.index;
             if let Some(order) = self.orders.get_mut(ix) {
                 *order = edited_order.clone();
                 self.recalc_consist();
-                self.edit_ordal_modal.edited_order = None;
+                self.edit_ordal_modal.order = None;
             }
         }
     }
