@@ -11,12 +11,13 @@ pub struct ConsistManagerApp {
     selected_loco: LocomotiveInfo,
 
     #[serde(skip)]
-    new_ordal_modal: OrderModal,
+    new_order_modal: OrderModal,
     #[serde(skip)]
-    edit_ordal_modal: OrderModal,
+    edit_order_modal: OrderModal,
 
     locomotives: Vec<LocomotiveInfo>,
     pub orders: Vec<Order>,
+    order_index: Option<usize>,
 
     total_weight: f32,
     total_length: f32,
@@ -34,11 +35,12 @@ impl Default for ConsistManagerApp {
                 .expect("Locomotive structure is totally borked")
                 .clone(),
 
-            new_ordal_modal: OrderModal::new(OrderModalMode::New),
-            edit_ordal_modal: OrderModal::new(OrderModalMode::Edit),
+            new_order_modal: OrderModal::new(OrderModalMode::New),
+            edit_order_modal: OrderModal::new(OrderModalMode::Edit),
 
             locomotives: Vec::new(),
             orders: Vec::new(),
+            order_index: None,
 
             total_weight: 0.0,
             total_length: 0.0,
@@ -111,7 +113,8 @@ impl eframe::App for ConsistManagerApp {
                 }
                 ui.add_space(15.0);
                 if ui.button("Add Order").clicked() {
-                    self.new_ordal_modal.open = true;
+                    self.new_order_modal.open = true;
+                    self.order_index = None;
                 }
                 ui.with_layout(egui::Layout::right_to_left(egui::Align::TOP), |ui| {
                     egui::widgets::global_theme_preference_buttons(ui);
@@ -215,13 +218,6 @@ impl eframe::App for ConsistManagerApp {
             }
         }
 
-        self.new_ordal_modal.show(ctx);
-        if let Some(order) = &self.new_ordal_modal.order {
-            self.orders.push(order.clone());
-            self.recalc_consist();
-            self.new_ordal_modal.order = None;
-        }
-
         egui::CentralPanel::default().frame(frame).show(ctx, |ui| {
             ui.vertical_centered(|ui| ui.heading("Orders"));
             ui.separator();
@@ -284,10 +280,39 @@ impl eframe::App for ConsistManagerApp {
                             .id(egui::Id::new("order_menu").with(row.index()))
                             .close_behavior(egui::PopupCloseBehavior::CloseOnClick)
                             .show(|ui| {
+                                let row_ix = row.index();
                                 ui.set_min_width(200.0);
+                                ui.menu_button("Add order...", |ui| {
+                                    if ui.button("Above").clicked() {
+                                        self.new_order_modal.open = true;
+                                        if row_ix == 0 {
+                                            self.order_index = Some(0);
+                                        } else {
+                                            self.order_index = Some(row.index() - 1);
+                                        }
+                                    } else if ui.button("Below").clicked() {
+                                        self.new_order_modal.open = true;
+                                        if row_ix == self.orders.len() {
+                                            self.order_index = None;
+                                        } else {
+                                            self.order_index = Some(row.index() + 1);
+                                        }
+                                    }
+                                });
+                                ui.menu_button("Move order...", |ui| {
+                                    if ui.button("Up").clicked() {
+                                        if row_ix > 0 {
+                                            self.orders.swap(row_ix, row_ix - 1);
+                                        }
+                                    } else if ui.button("Down").clicked()
+                                        && row_ix < self.orders.len() - 1
+                                    {
+                                        self.orders.swap(row_ix, row_ix + 1);
+                                    }
+                                });
                                 if ui.button("Edit order").clicked() {
-                                    self.edit_ordal_modal.init_from_order(&order, row.index());
-                                    self.edit_ordal_modal.open = true;
+                                    self.edit_order_modal.init_from_order(&order, row.index());
+                                    self.edit_order_modal.open = true;
                                 } else if ui.button("Delete order").clicked() {
                                     order_to_delete = Some(row.index());
                                 }
@@ -300,13 +325,23 @@ impl eframe::App for ConsistManagerApp {
                 });
         });
 
-        self.edit_ordal_modal.show(ctx);
-        if let Some(edited_order) = &self.edit_ordal_modal.order {
-            let ix = self.edit_ordal_modal.index;
+        self.new_order_modal.show(ctx);
+        if let Some(order) = &self.new_order_modal.order {
+            match self.order_index {
+                Some(ix) => self.orders.insert(ix, order.clone()),
+                None => self.orders.push(order.clone()),
+            }
+            self.recalc_consist();
+            self.new_order_modal.order = None;
+        }
+
+        self.edit_order_modal.show(ctx);
+        if let Some(edited_order) = &self.edit_order_modal.order {
+            let ix = self.edit_order_modal.index;
             if let Some(order) = self.orders.get_mut(ix) {
                 *order = edited_order.clone();
                 self.recalc_consist();
-                self.edit_ordal_modal.order = None;
+                self.edit_order_modal.order = None;
             }
         }
     }
