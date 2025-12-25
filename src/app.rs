@@ -1,5 +1,6 @@
 use crate::locomotive::{LOCO_LIST, Locomotive, LocomotiveInfo, locomotives};
 use crate::order::{Order, OrderModal, OrderModalMode};
+use crate::toggle_switch::toggle;
 use egui_extras::{Column, TableBuilder};
 
 /// We derive Deserialize/Serialize so we can persist app state on shutdown.
@@ -62,9 +63,18 @@ impl ConsistManagerApp {
 
     // Recalculates the weight maximums of the current train consist.
     pub fn recalc_loco_limits(&mut self) {
-        let weight_0_deg = self.locomotives.iter().fold(0, |a, l| a + l.zero_grade_t);
-        let weight_2_deg = self.locomotives.iter().fold(0, |a, l| a + l.two_grade_t);
-        let weight_rain = self.locomotives.iter().fold(0, |a, l| a + l.rain_grade_t);
+        let weight_0_deg = self
+            .locomotives
+            .iter()
+            .fold(0, |a, l| if l.powered { a + l.zero_grade_t } else { a });
+        let weight_2_deg = self
+            .locomotives
+            .iter()
+            .fold(0, |a, l| if l.powered { a + l.two_grade_t } else { a });
+        let weight_rain = self
+            .locomotives
+            .iter()
+            .fold(0, |a, l| if l.powered { a + l.rain_grade_t } else { a });
         self.supported_weight_0_deg = weight_0_deg;
         self.supported_weight_2_deg = weight_2_deg;
         self.supported_weight_rain = weight_rain;
@@ -96,7 +106,7 @@ impl eframe::App for ConsistManagerApp {
 
         egui::TopBottomPanel::top("top_panel").show(ctx, |ui| {
             egui::MenuBar::new().ui(ui, |ui| {
-                if ui.button("Add Locomotive").clicked() {
+                if ui.button("Add Locomotive/Car").clicked() {
                     self.add_loco_modal_open = true;
                 }
                 ui.add_space(15.0);
@@ -116,20 +126,28 @@ impl eframe::App for ConsistManagerApp {
                 ui.vertical_centered(|ui| ui.heading("Current Locomotives"));
                 ui.separator();
                 for ix in 0..self.locomotives.len() {
-                    let loco = self
-                        .locomotives
-                        .get(ix)
-                        .expect("Went out of bounds on locomotive list");
-                    let response = ui.label(format!("- {}", loco.loco));
-                    egui::Popup::context_menu(&response)
-                        .id(egui::Id::new("loco_menu").with(ix))
-                        .close_behavior(egui::PopupCloseBehavior::CloseOnClick)
-                        .show(|ui| {
-                            ui.set_min_width(200.0);
-                            if ui.button("Delete locomotive").clicked() {
-                                loco_to_delete = Some(ix);
+                    ui.horizontal(|ui| {
+                        let loco = self
+                            .locomotives
+                            .get_mut(ix)
+                            .expect("Went out of bounds on locomotive list");
+                        let response = ui.label(format!("- {}", loco.loco));
+                        if loco.has_power {
+                            let resp = ui.add(toggle(&mut loco.powered));
+                            if resp.changed() {
+                                self.recalc_loco_limits();
                             }
-                        });
+                        }
+                        egui::Popup::context_menu(&response)
+                            .id(egui::Id::new("loco_menu").with(ix))
+                            .close_behavior(egui::PopupCloseBehavior::CloseOnClick)
+                            .show(|ui| {
+                                ui.set_min_width(200.0);
+                                if ui.button("Delete locomotive").clicked() {
+                                    loco_to_delete = Some(ix);
+                                }
+                            });
+                    });
                 }
                 if let Some(loco) = loco_to_delete {
                     self.locomotives.remove(loco);
@@ -143,7 +161,7 @@ impl eframe::App for ConsistManagerApp {
             .show(ctx, |ui| {
                 ui.vertical_centered(|ui| ui.heading("Consist Info"));
                 ui.separator();
-                ui.label(format!("- Total Weight: {} T", self.total_weight));
+                ui.label(format!("- Total Weight: {:.2} T", self.total_weight));
                 ui.label("- Supported Weights:");
                 ui.label(format!("  - 0% grade: {} T", self.supported_weight_0_deg));
                 ui.label(format!("  - 2% grade: {} T", self.supported_weight_2_deg));
@@ -152,21 +170,24 @@ impl eframe::App for ConsistManagerApp {
                     self.supported_weight_rain
                 ));
                 ui.separator();
-                ui.label(format!("- Total Length: {}m", self.total_length));
+                ui.label(format!("- Total Length: {:.2}m", self.total_length));
             });
 
         if self.add_loco_modal_open {
-            let modal = egui::Modal::new("Add Locomotive".into()).show(ctx, |ui| {
+            let modal = egui::Modal::new("Add Locomotive/Car".into()).show(ctx, |ui| {
                 ui.set_width(250.0);
-                ui.heading("Add Locomotive");
-                egui::ComboBox::from_label("Locomotive:")
+                ui.heading("Add Locomotive/Car");
+                egui::ComboBox::from_label("Locomotive/Car")
                     .selected_text(self.selected_loco.loco.to_string())
                     .show_ui(ui, |ui| {
                         for l in LOCO_LIST {
                             let loco_str = l.to_string();
                             ui.selectable_value(
                                 &mut self.selected_loco,
-                                locomotives().get(&l).expect("Unknown locomotive").clone(),
+                                locomotives()
+                                    .get(&l)
+                                    .expect("Unknown locomotive/car")
+                                    .clone(),
                                 loco_str,
                             );
                         }
